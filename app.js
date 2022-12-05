@@ -1,5 +1,5 @@
 import { buildProgramFromSources, loadShadersFromURLS, setupWebGL } from "../../libs/utils.js";
-import { lookAt, flatten, perspective, vec3, vec4, mult, mat3, subtract, normalize, inverse, transpose, radians, mat4, translate, rotateX, rotateY, rotateZ, dot } from "../../libs/MV.js";
+import { lookAt, flatten, perspective, vec3, vec4, mult, mat3, subtract, normalize, inverse, transpose, radians, mat4, translate, rotateX, rotateY, rotateZ, dot, length } from "../../libs/MV.js";
 import { modelView, loadMatrix, multScale, pushMatrix, multTranslation, popMatrix } from "../../libs/stack.js";
 
 import { GUI } from '../../libs/dat.gui.module.js'
@@ -31,7 +31,7 @@ function setup(shaders)
             specular: vec3(100, 100, 100),
             position: vec4(-5, 5, -5, 0),
             axis: vec3(0, -1, 0),
-            aperture: 360,
+            aperture: 180,
             cutoff: 0
         },
         local: {
@@ -40,11 +40,11 @@ function setup(shaders)
             specular: vec3(50, 50, 100),
             position: vec4(5, 6, 0, 1),
             axis: vec3(0, -5.0, 0),
-            aperture: 360,
+            aperture: 180,
             cutoff: 0
         },
         spotlight: {
-            ambient: vec3(100, 100, 25),
+            ambient: vec3(0, 0, 0),
             diffuse: vec3(100, 100, 25),
             specular: vec3(100, 100, 25),
             position: vec4(0, 6, 5, 1),
@@ -110,50 +110,6 @@ function setup(shaders)
     window.requestAnimationFrame(render);
     //#endregion
 
-    //#region Drag camera
-    let drag = {
-        on: false,
-        x: undefined,
-        y: undefined,
-        radius: undefined,
-        phi: undefined,
-        theta: undefined,
-    }
-
-    document.addEventListener("mousedown", (evt) => {
-        drag.x = evt.clientX;
-        drag.y = evt.clientY;
-        const dir = subtract(camera.eye, camera.at);
-        drag.radius = Math.sqrt(dot(dir, dir));
-        drag.phi = Math.asin(dir[1] / drag.radius);
-        drag.theta = Math.asin(dir[0] / (drag.radius * Math.cos(drag.phi)));
-        if (dir[2] < 0)
-            drag.theta = Math.PI - drag.theta;
-        drag.on = true;
-    })
-
-    document.addEventListener("mousemove", (evt) => {
-        if (!drag.on) return;
-
-        let theta = drag.x - evt.clientX;
-        let phi = evt.clientY - drag.y;
-
-        theta = 2 * Math.PI * (theta / canvas.width) + drag.theta;
-        phi = 2 * Math.PI * (phi / canvas.height) + drag.phi;
-        phi = Math.max(-Math.PI / 2, Math.min(phi, Math.PI / 2));
-
-        camera.eye = [...camera.at];
-        camera.eye[0] += drag.radius * Math.sin(theta) * Math.cos(phi);
-        camera.eye[1] += drag.radius * Math.sin(phi);
-        camera.eye[2] += drag.radius * Math.cos(theta) * Math.cos(phi);
-        updateMView();
-    })
-
-    document.addEventListener("mouseup", () => {
-        drag.on = false;
-    })
-    //#endregion
-
     //#region GUI
     function addVec3(parentFolder, parentObject, childName, onChange) {
         let folder = parentFolder.addFolder(childName);
@@ -198,7 +154,7 @@ function setup(shaders)
         guiLight.addColor(light, "specular");
         addVec4(guiLight, light, "position");
         addVec3(guiLight, light, "axis");
-        guiLight.add(light, "aperture", 0, 360);
+        guiLight.add(light, "aperture", 0, 180);
         guiLight.add(light, "cutoff", 0, 16);
     }
 
@@ -214,6 +170,61 @@ function setup(shaders)
     }
 
 
+    //#endregion
+
+    //#region Drag camera
+    let drag = {
+        disabled: false,
+        on: false,
+        x: undefined,
+        y: undefined,
+        radius: undefined,
+        phi: undefined,
+        theta: undefined,
+    }
+
+    document.querySelector(".dg.ac").addEventListener("mouseenter", () => {
+        drag.disabled = true
+    })
+
+    document.querySelector(".dg.ac").addEventListener("mouseleave", () => {
+        drag.disabled = false
+    })
+
+    document.addEventListener("mousedown", (evt) => {
+        if (drag.disabled) return;
+        
+        drag.x = evt.clientX;
+        drag.y = evt.clientY;
+        const dir = subtract(camera.eye, camera.at);
+        drag.radius = length(dir);
+        drag.phi = Math.asin(dir[1] / drag.radius);
+        drag.theta = Math.asin(dir[0] / (drag.radius * Math.cos(drag.phi)));
+        if (dir[2] < 0)
+            drag.theta = Math.PI - drag.theta;
+        drag.on = true;
+    })
+
+    document.addEventListener("mousemove", (evt) => {
+        if (!drag.on) return;
+
+        let theta = drag.x - evt.clientX;
+        let phi = evt.clientY - drag.y;
+
+        theta = 2 * Math.PI * (theta / canvas.width) + drag.theta;
+        phi = 2 * Math.PI * (phi / canvas.height) + drag.phi;
+        phi = Math.max(-Math.PI / 2, Math.min(phi, Math.PI / 2));
+
+        camera.eye = [...camera.at];
+        camera.eye[0] += drag.radius * Math.sin(theta) * Math.cos(phi);
+        camera.eye[1] += drag.radius * Math.sin(phi);
+        camera.eye[2] += drag.radius * Math.cos(theta) * Math.cos(phi);
+        updateMView();
+    })
+
+    document.addEventListener("mouseup", () => {
+        drag.on = false;
+    })
     //#endregion
 
     //#region Utility functions

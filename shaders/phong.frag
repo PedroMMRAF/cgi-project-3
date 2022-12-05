@@ -1,6 +1,7 @@
 precision highp float;
 
 const int MAX_LIGHTS = 8;
+const float PI = 3.14159265359;
 
 struct LightInfo {
     // Light colour intensities
@@ -52,31 +53,29 @@ void main() {
             lightDirection = normalize(light.position.xyz);
         else
             lightDirection = normalize(light.position.xyz - fPos);
-        
-        float attenuation = attenuate(distance(light.position.xyz, fPos));
-
-        vec3 cameraDirection = normalize(-fPos);
-
-        vec3 reflectedLight = reflect(-lightDirection, normal);
 
         vec3 ambient = uMaterial.Ka * light.ambient;
 
         float diffuseFactor = max(dot(lightDirection, normal), 0.0);
         vec3 diffuse = uMaterial.Kd * light.diffuse * diffuseFactor;
 
+        vec3 cameraDirection = normalize(-fPos);
+        vec3 reflectedLight = reflect(-lightDirection, normal);
+
         float specularFactor = pow(max(dot(cameraDirection, reflectedLight), 0.0), uMaterial.shininess);
         vec3 specular = uMaterial.Ks * light.specular * specularFactor;
+
+        float attenuation = attenuate(distance(light.position.xyz, fPos));
 
         if (dot(lightDirection, normal) < 0.0) {
             specular = vec3(0.0);
         }
 
         vec3 sumLight = ambient + attenuation * (diffuse + specular);
-
         float spotCos = dot(lightDirection, normalize(-light.axis));
 
-        if (acos(spotCos) < light.aperture)
-            finalLight += sumLight * pow(spotCos, light.cutoff);
+        if (spotCos > cos(light.aperture))
+            finalLight += max(sumLight * pow(abs(spotCos), light.cutoff), 0.0);
     }
 
     gl_FragColor = vec4(finalLight, 0.0);
