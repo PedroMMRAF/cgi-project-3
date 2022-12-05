@@ -158,24 +158,23 @@ function setup(shaders)
     function addVec3(parentFolder, parentObject, childName, onChange) {
         let folder = parentFolder.addFolder(childName);
 
-        let vec = parentObject[childName]
         let proxy = {}
 
         for (let i = 0; i < 3; i++) {
-            proxy.__defineGetter__("xyz"[i], () => vec[i]);
-            proxy.__defineSetter__("xyz"[i], (v) => {vec[i] = v});
-            folder.add(proxy, "xyz"[i], -10, 10).onChange(onChange);
+            proxy.__defineGetter__("xyz"[i], () => parentObject[childName][i]);
+            proxy.__defineSetter__("xyz"[i], (v) => {parentObject[childName][i] = v});
+            folder.add(proxy, "xyz"[i], -20, 20).onChange(onChange).listen();
         }
 
-        return [folder, vec, proxy];
+        return [folder, proxy];
     }
 
     function addVec4(parentFolder, parentObject, childName, onChange) {
-        let [folder, vec, proxy] = addVec3(parentFolder, parentObject, childName);
+        let [folder, proxy] = addVec3(parentFolder, parentObject, childName);
 
-        proxy.__defineGetter__("w", () => vec[3]);
-        proxy.__defineSetter__("w", (v) => {vec[3] = v});
-        folder.add(proxy, "w", [0, 1]).onChange(onChange);
+        proxy.__defineGetter__("w", () => parentObject[childName][3]);
+        proxy.__defineSetter__("w", (v) => {parentObject[childName][3] = v});
+        folder.add(proxy, "w", [0, 1]).onChange(onChange).listen();
     }
 
     const gui = new GUI();
@@ -211,7 +210,7 @@ function setup(shaders)
         guiMaterial.addColor(material, "Ka");
         guiMaterial.addColor(material, "Kd");
         guiMaterial.addColor(material, "Ks");
-        guiMaterial.add(material, "shininess", 0.0, 128.0);
+        guiMaterial.add(material, "shininess", 1.0, 128.0);
     }
 
 

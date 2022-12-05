@@ -64,7 +64,7 @@ void main() {
         float diffuseFactor = max(dot(lightDirection, normal), 0.0);
         vec3 diffuse = uMaterial.Kd * light.diffuse * diffuseFactor;
 
-        float specularFactor = pow(max(dot(cameraDirection, reflectedLight), 0.0), 64.0);
+        float specularFactor = pow(max(dot(cameraDirection, reflectedLight), 0.0), uMaterial.shininess);
         vec3 specular = uMaterial.Ks * light.specular * specularFactor;
 
         if (dot(lightDirection, normal) < 0.0) {
