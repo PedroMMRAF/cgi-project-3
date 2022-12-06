@@ -1,5 +1,5 @@
 import { buildProgramFromSources, loadShadersFromURLS, setupWebGL } from "../../libs/utils.js";
-import { lookAt, flatten, perspective, vec3, vec4, mult, mat3, subtract, normalize, inverse, transpose, radians, mat4, translate, rotateX, rotateY, rotateZ, dot, length } from "../../libs/MV.js";
+import { lookAt, flatten, perspective, vec3, vec4, mult, mat3, subtract, normalize, inverse, transpose, radians, mat4, translate, rotateX, rotateY, rotateZ, dot, length, add } from "../../libs/MV.js";
 import { modelView, loadMatrix, multScale, pushMatrix, multTranslation, popMatrix } from "../../libs/stack.js";
 
 import { GUI } from '../../libs/dat.gui.module.js'
@@ -15,6 +15,11 @@ let gl;
 function setup(shaders)
 {
     //#region Main data
+    let options = {
+        backfaceCulling: true,
+        depthTest: true
+    }
+
     let camera = {
         eye: vec3(0, 5, 10),
         at: vec3(0, 0, 0),
@@ -26,28 +31,31 @@ function setup(shaders)
 
     let lights = {
         global: {
+            active: true,
             ambient: vec3(100, 100, 100),
             diffuse: vec3(100, 100, 100),
             specular: vec3(100, 100, 100),
-            position: vec4(-5, 5, -5, 0),
+            position: vec4(-5, 5, -5, false),
             axis: vec3(0, -1, 0),
             aperture: 180,
             cutoff: 0
         },
         local: {
+            active: true,
             ambient: vec3(50, 50, 100),
             diffuse: vec3(50, 50, 100),
             specular: vec3(50, 50, 100),
-            position: vec4(5, 6, 0, 1),
+            position: vec4(5, 6, 0, true),
             axis: vec3(0, -5.0, 0),
             aperture: 180,
             cutoff: 0
         },
         spotlight: {
+            active: true,
             ambient: vec3(0, 0, 0),
             diffuse: vec3(100, 100, 25),
             specular: vec3(100, 100, 25),
-            position: vec4(0, 6, 5, 1),
+            position: vec4(0, 6, 5, true),
             axis: vec3(0, -1, -0.5),
             aperture: 20,
             cutoff: 4
@@ -63,25 +71,25 @@ function setup(shaders)
         },
         cube: {
             Ka: vec3(189, 40, 40),
-            Kd: vec3(255, 255, 255),
+            Kd: vec3(189, 40, 40),
             Ks: vec3(255, 255, 255),
             shininess: 8.0,
         },
         cylinder: {
             Ka: vec3(45, 189, 40),
-            Kd: vec3(255, 255, 255),
+            Kd: vec3(45, 189, 40),
             Ks: vec3(255, 255, 255),
             shininess: 16.0,
         },
         torus: {
             Ka: vec3(47, 40, 189),
-            Kd: vec3(255, 255, 255),
+            Kd: vec3(47, 40, 189),
             Ks: vec3(255, 255, 255),
             shininess: 32.0,
         },
         bunny: {
             Ka: vec3(173, 148, 21),
-            Kd: vec3(255, 255, 255),
+            Kd: vec3(173, 148, 21),
             Ks: vec3(255, 255, 255),
             shininess: 64.0,
         },
@@ -111,35 +119,37 @@ function setup(shaders)
     //#endregion
 
     //#region GUI
-    function addVec3(parentFolder, parentObject, childName, onChange) {
+    function addVec(parentFolder, parentObject, childName, onChange) {
         let folder = parentFolder.addFolder(childName);
 
+        let childObject = parentObject[childName];
         let proxy = {}
 
         for (let i = 0; i < 3; i++) {
-            proxy.__defineGetter__("xyz"[i], () => parentObject[childName][i]);
-            proxy.__defineSetter__("xyz"[i], (v) => {parentObject[childName][i] = v});
+            proxy.__defineGetter__("xyz"[i], () => childObject[i]);
+            proxy.__defineSetter__("xyz"[i], (v) => {childObject[i] = v});
             folder.add(proxy, "xyz"[i], -20, 20).onChange(onChange).listen();
         }
 
-        return [folder, proxy];
-    }
-
-    function addVec4(parentFolder, parentObject, childName, onChange) {
-        let [folder, proxy] = addVec3(parentFolder, parentObject, childName);
-
-        proxy.__defineGetter__("w", () => parentObject[childName][3]);
-        proxy.__defineSetter__("w", (v) => {parentObject[childName][3] = v});
-        folder.add(proxy, "w", [0, 1]).onChange(onChange).listen();
+        if (childObject.length > 3) {
+            proxy.__defineGetter__("w", () => parentObject[childName][3]);
+            proxy.__defineSetter__("w", (v) => {parentObject[childName][3] = v});
+            folder.add(proxy, "w").onChange(onChange).listen();
+        }
     }
 
     const gui = new GUI();
 
+    const guiOptions = gui.addFolder("Options");
+
+    guiOptions.add(options, "backfaceCulling")
+    guiOptions.add(options, "depthTest")
+
     const guiCamera = gui.addFolder("Camera");
 
-    addVec3(guiCamera, camera, "eye", updateMView);
-    addVec3(guiCamera, camera, "at", updateMView);
-    addVec3(guiCamera, camera, "up", updateMView);
+    addVec(guiCamera, camera, "eye", updateMView);
+    addVec(guiCamera, camera, "at", updateMView);
+    addVec(guiCamera, camera, "up", updateMView);
     guiCamera.add(camera, "fovy", 20, 160).onChange(updateMProjection);
     guiCamera.add(camera, "near", 0.1, 40).onChange(updateMProjection);
     guiCamera.add(camera, "far",  0.1, 40).onChange(updateMProjection);
@@ -149,11 +159,12 @@ function setup(shaders)
     for (let [name, light] of Object.entries(lights)) {
         const guiLight = guiLights.addFolder(name);
 
+        guiLight.add(light, "active");
         guiLight.addColor(light, "ambient");
         guiLight.addColor(light, "diffuse");
         guiLight.addColor(light, "specular");
-        addVec4(guiLight, light, "position");
-        addVec3(guiLight, light, "axis");
+        addVec(guiLight, light, "position");
+        addVec(guiLight, light, "axis");
         guiLight.add(light, "aperture", 0, 180);
         guiLight.add(light, "cutoff", 0, 16);
     }
@@ -168,8 +179,6 @@ function setup(shaders)
         guiMaterial.addColor(material, "Ks");
         guiMaterial.add(material, "shininess", 1.0, 128.0);
     }
-
-
     //#endregion
 
     //#region Drag camera
@@ -179,8 +188,10 @@ function setup(shaders)
         x: undefined,
         y: undefined,
         radius: undefined,
-        phi: undefined,
-        theta: undefined,
+        prevPhi: undefined,
+        prevTheta: undefined,
+        curPhi: undefined,
+        curTheta: undefined,
     }
 
     document.querySelector(".dg.ac").addEventListener("mouseenter", () => {
@@ -191,6 +202,17 @@ function setup(shaders)
         drag.disabled = false
     })
 
+    document.addEventListener("wheel", (evt) => {
+        let dir = subtract(camera.eye, camera.at);
+        drag.radius = length(dir);
+        dir = normalize(dir);
+        drag.radius += evt.deltaY / 100;
+        drag.radius = Math.max(1.0, Math.min(drag.radius, 30.0))
+
+        camera.eye = add(camera.at, mult(dir, [drag.radius, drag.radius, drag.radius]));
+        updateMView();
+    })
+
     document.addEventListener("mousedown", (evt) => {
         if (drag.disabled) return;
         
@@ -198,27 +220,27 @@ function setup(shaders)
         drag.y = evt.clientY;
         const dir = subtract(camera.eye, camera.at);
         drag.radius = length(dir);
-        drag.phi = Math.asin(dir[1] / drag.radius);
-        drag.theta = Math.asin(dir[0] / (drag.radius * Math.cos(drag.phi)));
+        drag.prevPhi = Math.asin(dir[1] / drag.radius);
+        drag.prevTheta = Math.asin(dir[0] / (drag.radius * Math.cos(drag.prevPhi)));
         if (dir[2] < 0)
-            drag.theta = Math.PI - drag.theta;
+            drag.prevTheta = Math.PI - drag.prevTheta;
         drag.on = true;
     })
 
     document.addEventListener("mousemove", (evt) => {
         if (!drag.on) return;
 
-        let theta = drag.x - evt.clientX;
-        let phi = evt.clientY - drag.y;
+        drag.curTheta = drag.x - evt.clientX;
+        drag.curPhi = evt.clientY - drag.y;
 
-        theta = 2 * Math.PI * (theta / canvas.width) + drag.theta;
-        phi = 2 * Math.PI * (phi / canvas.height) + drag.phi;
-        phi = Math.max(-Math.PI / 2, Math.min(phi, Math.PI / 2));
+        drag.curTheta = 2 * Math.PI * (drag.curTheta / canvas.width) + drag.prevTheta;
+        drag.curPhi = 2 * Math.PI * (drag.curPhi / canvas.height) + drag.prevPhi;
+        drag.curPhi = Math.max(-Math.PI / 2, Math.min(drag.curPhi, Math.PI / 2));
 
         camera.eye = [...camera.at];
-        camera.eye[0] += drag.radius * Math.sin(theta) * Math.cos(phi);
-        camera.eye[1] += drag.radius * Math.sin(phi);
-        camera.eye[2] += drag.radius * Math.cos(theta) * Math.cos(phi);
+        camera.eye[0] += drag.radius * Math.sin(drag.curTheta) * Math.cos(drag.curPhi);
+        camera.eye[1] += drag.radius * Math.sin(drag.curPhi);
+        camera.eye[2] += drag.radius * Math.cos(drag.curTheta) * Math.cos(drag.curPhi);
         updateMView();
     })
 
@@ -247,67 +269,63 @@ function setup(shaders)
         updateMView();
     }
 
-    function uploadModelView()
-    {
-        gl.uniformMatrix4fv(
-            gl.getUniformLocation(program, "mModelView"),
-            false, flatten(modelView())
-        );
-        gl.uniformMatrix4fv(
-            gl.getUniformLocation(program, "mNormals"),
-            false, flatten(inverse(transpose(modelView())))
-        );
+    function uploadUniform(locationName, obj, isInt = false) {
+        let fi = isInt ? "i" : "f";
+        let location = gl.getUniformLocation(program, locationName);
+
+        if (obj.matrix) {
+            gl[`uniformMatrix${obj.length}${fi}v`](location, false, flatten(obj));
+        }
+        else {
+            obj = [obj].flat(1);
+            gl[`uniform${obj.length}${fi}v`](location, obj);
+        }
     }
 
-    function uploadProjection()
+    function uploadModelView()
     {
-        gl.uniformMatrix4fv(gl.getUniformLocation(program, "mProjection"), false, flatten(mProjection));
+        uploadUniform("mModelView", modelView());
+        uploadUniform("mNormals", inverse(transpose(modelView())));
+    }
+
+    function normalizeRGB(vec) {
+        return vec.map(e => e / 255)
     }
 
     function uploadLights() {
         const keys = Object.keys(lights);
 
-        gl.uniform1i(gl.getUniformLocation(program, "uNLights"), keys.length);
+        uploadUniform("uNLights", keys.length, true);
 
         for (let i = 0; i < keys.length; i++) {
-            const sourceLight = lights[keys[i]];
-            const norm = vec3(1/255, 1/255, 1/255);
-            const light = {
-                ambient: mult(sourceLight.ambient, norm),
-                diffuse: mult(sourceLight.diffuse, norm),
-                specular: mult(sourceLight.specular, norm),
-                position: mult(mView, sourceLight.position),
-                axis: vec3(mult(inverse(transpose(mView)), vec4(sourceLight.axis))),
-                aperture: radians(sourceLight.aperture),
-                cutoff: sourceLight.cutoff,
-            }
-
-            for (let [k, v] of Object.entries(light)) {
-                v = [v].flat(1);
-                gl[`uniform${v.length}fv`](
-                    gl.getUniformLocation(program, `uLights[${i}].${k}`),
-                    v
-                );
-            }
+            let light = {...lights[keys[i]]};
+            
+            if (!light.active) {
+                light.ambient = vec3(0, 0, 0);
+                light.diffuse = vec3(0, 0, 0);
+                light.specular = vec3(0, 0, 0);
+            };
+            
+            const uploadLightUniform = (k, v) => uploadUniform(`uLights[${i}].${k}`, v);
+            
+            uploadLightUniform("ambient",  normalizeRGB(light.ambient));
+            uploadLightUniform("diffuse",  normalizeRGB(light.diffuse));
+            uploadLightUniform("specular", normalizeRGB(light.specular));
+            uploadLightUniform("position", mult(mView, light.position));
+            uploadLightUniform("axis",     vec3(mult(inverse(transpose(mView)), vec4(light.axis))));
+            uploadLightUniform("aperture", radians(light.aperture));
+            uploadLightUniform("cutoff",   light.cutoff);
         }
     }
 
     function uploadMaterial(material) {
-        const norm = vec3(1/255, 1/255, 1/255);
-        material = {
-            Ka: mult(material.Ka, norm),
-            Kd: mult(material.Kd, norm),
-            Ks: mult(material.Ks, norm),
-            shininess: material.shininess
-        }
-
-        gl.uniform3fv(gl.getUniformLocation(program, "uMaterial.Ka"), material.Ka)
-        gl.uniform3fv(gl.getUniformLocation(program, "uMaterial.Kd"), material.Kd)
-        gl.uniform3fv(gl.getUniformLocation(program, "uMaterial.Ks"), material.Ks)
-        gl.uniform1f(gl.getUniformLocation(program, "uMaterial.shininess"), material.shininess)
+        uploadUniform("uMaterial.Ka",        normalizeRGB(material.Ka));
+        uploadUniform("uMaterial.Kd",        normalizeRGB(material.Kd));
+        uploadUniform("uMaterial.Ks",        normalizeRGB(material.Ks));
+        uploadUniform("uMaterial.shininess", material.shininess);
     }
 
-    function Model(model, material) {
+    function drawBaseModel(model, material) {
         uploadMaterial(material);
         uploadModelView();
         model.draw(gl, program, gl.TRIANGLES);
@@ -318,31 +336,31 @@ function setup(shaders)
         pushMatrix();
             multTranslation(vec3(0, -0.25, 0));
             multScale(vec3(10, 0.5, 10));
-            Model(CUBE, materials.ground);
+            drawBaseModel(CUBE, materials.ground);
         popMatrix();
 
         pushMatrix();
             multTranslation(vec3(-2, 1.0, -2));
             multScale(vec3(2, 2, 2));
-            Model(CUBE, materials.cube);
+            drawBaseModel(CUBE, materials.cube);
         popMatrix();
 
         pushMatrix();
             multTranslation(vec3(2, 1.0, -2));
             multScale(vec3(2, 2, 2));
-            Model(CYLINDER, materials.cylinder);
+            drawBaseModel(CYLINDER, materials.cylinder);
         popMatrix();
         
         pushMatrix();
             multTranslation(vec3(-2, 0.4, 2));
             multScale(vec3(2, 2, 2));
-            Model(TORUS, materials.torus);
+            drawBaseModel(TORUS, materials.torus);
         popMatrix();
 
         pushMatrix();
             multTranslation(vec3(2, 0, 2));
             multScale(vec3(15, 15, 15));
-            Model(BUNNY, materials.bunny);
+            drawBaseModel(BUNNY, materials.bunny);
         popMatrix();
     }
 
@@ -353,11 +371,21 @@ function setup(shaders)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.useProgram(program);
 
-        uploadProjection();
+        gl.cullFace(gl.BACK);
+        if (options.backfaceCulling)
+            gl.enable(gl.CULL_FACE);
+        else
+            gl.disable(gl.CULL_FACE);
+
+        if (options.depthTest)
+            gl.enable(gl.DEPTH_TEST);
+        else
+            gl.disable(gl.DEPTH_TEST);
+
+        uploadUniform("mProjection", mProjection);
+        uploadLights();
 
         loadMatrix(mView);
-
-        uploadLights();
 
         Scene();
     }
