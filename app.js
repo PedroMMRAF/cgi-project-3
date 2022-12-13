@@ -139,7 +139,7 @@ function setup(shaders)
     //#endregion
 
     //#region GUI
-    //adiciona um folder a cada vetor do GUI
+    // adiciona folders como vetores
     function addVec(parentFolder, parentObject, childName) {
         let folder = parentFolder.addFolder(childName);
         let sub = [];
@@ -316,6 +316,7 @@ function setup(shaders)
         uploadUniform("mNormals", inverse(transpose(modelView())));
     }
 
+    // normaliza vetores rgb
     function normalizeRGB(vec) {
         return vec.map(e => e / 255)
     }
