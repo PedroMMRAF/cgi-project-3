@@ -65,17 +65,17 @@ void main() {
         float specularFactor = pow(max(dot(cameraDirection, reflectedLight), 0.0), uMaterial.shininess);
         vec3 specular = uMaterial.Ks * light.specular * specularFactor;
 
+        if (dot(lightDirection, normal) < 0.0)
+            specular = vec3(0.0);
+            
         float attenuation = attenuate(distance(light.position.xyz, fPos));
 
-        if (dot(lightDirection, normal) < 0.0) {
-            specular = vec3(0.0);
-        }
 
         vec3 sumLight = ambient + attenuation * (diffuse + specular);
         float spotCos = dot(lightDirection, normalize(-light.axis));
 
         if (spotCos > cos(light.aperture))
-            finalLight += max(sumLight * pow(abs(spotCos), light.cutoff), 0.0);
+            finalLight += max(sumLight * pow((spotCos + 1.0) / 2.0, light.cutoff), 0.0);
     }
 
     gl_FragColor = vec4(finalLight, 0.0);

@@ -166,7 +166,7 @@ function setup(shaders)
         addVec(guiLight, light, "position");
         addVec(guiLight, light, "axis");
         guiLight.add(light, "aperture", 0, 180);
-        guiLight.add(light, "cutoff", 0, 16);
+        guiLight.add(light, "cutoff", 0, 128);
     }
 
     const guiMaterials = gui.addFolder("Materials");
@@ -312,7 +312,7 @@ function setup(shaders)
             uploadLightUniform("diffuse",  normalizeRGB(light.diffuse));
             uploadLightUniform("specular", normalizeRGB(light.specular));
             uploadLightUniform("position", mult(mView, light.position));
-            uploadLightUniform("axis",     vec3(mult(inverse(transpose(mView)), vec4(light.axis))));
+            uploadLightUniform("axis",     vec3(mult(mView, vec4(light.axis, 0.0))));
             uploadLightUniform("aperture", radians(light.aperture));
             uploadLightUniform("cutoff",   light.cutoff);
         }
