@@ -130,7 +130,7 @@ function setup(shaders)
     //#endregion
 
     //#region GUI
-    //adiciona um folder a cada vetor do GUI
+    //adiciona folders como vetores
     function addVec(parentFolder, parentObject, childName) {
         let folder = parentFolder.addFolder(childName);
         let sub = [];
@@ -306,7 +306,7 @@ function setup(shaders)
         uploadUniform("mModelView", modelView());
         uploadUniform("mNormals", inverse(transpose(modelView())));
     }
-
+    //normaliza vetores rgb
     function normalizeRGB(vec) {
         return vec.map(e => e / 255)
     }
@@ -324,7 +324,6 @@ function setup(shaders)
                 light.diffuse = vec3(0, 0, 0);
                 light.specular = vec3(0, 0, 0);
             };
-            
             const uploadLightUniform = (k, v) => uploadUniform(`uLights[${i}].${k}`, v);
             
             uploadLightUniform("ambient",  normalizeRGB(light.ambient));
