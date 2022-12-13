@@ -30,7 +30,7 @@ function setup(shaders)
     }
 
     let lights = {
-        global: {
+        global: {//light direction é igual para todos os fragmentos
             active: true,
             ambient: vec3(100, 100, 100),
             diffuse: vec3(100, 100, 100),
@@ -40,15 +40,15 @@ function setup(shaders)
             aperture: 180,
             cutoff: 0
         },
-        local: {
+        local: {//light direction depende da posição do fragmento
             active: true,
             ambient: vec3(50, 50, 100),
             diffuse: vec3(50, 50, 100),
             specular: vec3(50, 50, 100),
             position: vec4(5, 6, 0, true),
-            axis: vec3(0, -5.0, 0),
-            aperture: 180,
-            cutoff: 0
+            axis: vec3(0, -5.0, 0),//eixo do spotlight
+            aperture: 180,//abertura do spotlight
+            cutoff: 0//corte da spotlight
         },
         spotlight: {
             active: true,
@@ -64,10 +64,10 @@ function setup(shaders)
 
     let materials = {
         ground: {
-            Ka: vec3(112, 82, 44),
-            Kd: vec3(112, 82, 44),
-            Ks: vec3(112, 82, 44),
-            shininess: 4.0,
+            Ka: vec3(112, 82, 44),//fator constante do material(como cada material vai reagir a cada componente da luz) sobre a luz  ambiente
+            Kd: vec3(112, 82, 44),//sobre luz difusa
+            Ks: vec3(112, 82, 44),//sobre luz especular
+            shininess: 4.0,//brilho do material(so influencia a componente especular)
         },
         cube: {
             Ka: vec3(189, 40, 40),
@@ -119,7 +119,7 @@ function setup(shaders)
     //#endregion
 
     //#region GUI
-    function addVec(parentFolder, parentObject, childName, onChange) {
+    function addVec(parentFolder, parentObject, childName, onChange) {//adiciona um folder a cada vetor do GUI
         let folder = parentFolder.addFolder(childName);
 
         let childObject = parentObject[childName];
@@ -269,7 +269,7 @@ function setup(shaders)
         updateMView();
     }
 
-    function uploadUniform(locationName, obj, isInt = false) {
+    function uploadUniform(locationName, obj, isInt = false) {//faz upload a uniforms sem precisar de saber o tipo das vairaveis
         let fi = isInt ? "i" : "f";
         let location = gl.getUniformLocation(program, locationName);
 
@@ -292,7 +292,7 @@ function setup(shaders)
         return vec.map(e => e / 255)
     }
 
-    function uploadLights() {
+    function uploadLights() {//Faz upload as luzes
         const keys = Object.keys(lights);
 
         uploadUniform("uNLights", keys.length, true);
@@ -371,13 +371,13 @@ function setup(shaders)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.useProgram(program);
 
-        gl.cullFace(gl.BACK);
+        gl.cullFace(gl.BACK);//esconde faces de tras
         if (options.backfaceCulling)
-            gl.enable(gl.CULL_FACE);
+            gl.enable(gl.CULL_FACE);//esconder faces ocultas, com o objetivo de diminuir carga no gpu caso seja necessario
         else
             gl.disable(gl.CULL_FACE);
 
-        if (options.depthTest)
+        if (options.depthTest)//testa profundidade dos fragmentos dos objetos
             gl.enable(gl.DEPTH_TEST);
         else
             gl.disable(gl.DEPTH_TEST);

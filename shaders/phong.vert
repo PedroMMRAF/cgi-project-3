@@ -10,6 +10,6 @@ varying vec3 fPos;
 
 void main() {
     gl_Position = mProjection * mModelView * vPosition;
-    fPos = (mModelView * vPosition).xyz;
-    fNormal = mat3(mNormals) * vNormal;
+    fPos = (mModelView * vPosition).xyz;//ignora-se w pq se sabe que e ponto, fpos e calculada depois de phong.vert e antes de phong.frag(pos de cada fragmento)
+    fNormal = mat3(mNormals) * vNormal;//fnormal é a normal dum fragmento corrigida, mNormals vai ser a matriz que vai corrigir as normais, vNormal e a normal potencialmente distorcida
 }
