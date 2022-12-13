@@ -1,5 +1,5 @@
 import { buildProgramFromSources, loadShadersFromURLS, setupWebGL } from "../../libs/utils.js";
-import { lookAt, flatten, perspective, vec3, vec4, mult, mat3, subtract, normalize, inverse, transpose, radians, mat4, translate, rotateX, rotateY, rotateZ, dot, length, add } from "../../libs/MV.js";
+import { lookAt, flatten, perspective, vec3, vec4, mult, subtract, normalize, inverse, transpose, radians, length, add } from "../../libs/MV.js";
 import { modelView, loadMatrix, multScale, pushMatrix, multTranslation, popMatrix } from "../../libs/stack.js";
 
 import { GUI } from '../../libs/dat.gui.module.js'
@@ -30,7 +30,8 @@ function setup(shaders)
     }
 
     let lights = {
-        global: { //light direction é igual para todos os fragmentos
+        global: {
+            // light direction é igual para todos os fragmentos
             active: true,
             ambient: vec3(100, 100, 100),
             diffuse: vec3(100, 100, 100),
@@ -40,15 +41,18 @@ function setup(shaders)
             aperture: 180,
             cutoff: 0
         },
-        local: { //light direction depende da posição do fragmento
+        local: {
+            // light direction depende da posição do fragmento
             active: true,
             ambient: vec3(50, 50, 100),
             diffuse: vec3(50, 50, 100),
             specular: vec3(50, 50, 100),
             position: vec4(5, 6, 0, true),
-            axis: vec3(0, -5.0, 0), //eixo do spotlight
-            aperture: 180, //abertura do spotlight
-            cutoff: 0 //corte da spotlight
+            axis: vec3(0, -5.0, 0), 
+            // abertura do spotlight
+            aperture: 180,
+            // corte da spotlight
+            cutoff: 0
         },
         spotlight: {
             active: true,
@@ -64,10 +68,15 @@ function setup(shaders)
 
     let materials = {
         ground: {
-            Ka: vec3(112, 82, 44),//fator constante do material(como cada material vai reagir a cada componente da luz) sobre a luz  ambiente
-            Kd: vec3(112, 82, 44),//sobre luz difusa
-            Ks: vec3(112, 82, 44),//sobre luz especular
-            shininess: 4.0,//brilho do material(so influencia a componente especular)
+            // fator constante do material (como cada material vai
+            // reagir a cada componente da luz) sobre a luz  ambiente
+            Ka: vec3(112, 82, 44),
+            // sobre luz difusa
+            Kd: vec3(112, 82, 44),
+            // sobre luz especular
+            Ks: vec3(112, 82, 44),
+            // brilho do material (so influencia a componente especular)
+            shininess: 4.0,
         },
         cube: {
             Ka: vec3(189, 40, 40),
@@ -287,7 +296,7 @@ function setup(shaders)
         mProjection = perspective(camera.fovy, aspect, camera.near, camera.far);
     }
 
-    //faz upload a uniforms sem precisar de saber o tipo das variaveis
+    // faz upload a uniforms sem precisar de saber o tipo das variaveis
     function uploadUniform(locationName, obj, isInt = false) {
         let fi = isInt ? "i" : "f";
         let location = gl.getUniformLocation(program, locationName);
@@ -311,36 +320,41 @@ function setup(shaders)
         return vec.map(e => e / 255)
     }
 
-    function uploadLights() {//Faz upload as luzes
-        const keys = Object.keys(lights);
+    // Faz upload as luzes
+    function uploadLights() {
+        const lightNames = Object.keys(lights);
 
-        uploadUniform("uNLights", keys.length, true);
+        uploadUniform("uNLights", lightNames.length, true);
 
-        for (let i = 0; i < keys.length; i++) {
-            let light = {...lights[keys[i]]};
+        for (let i = 0; i < lightNames.length; i++) {
+            let light = lights[lightNames[i]];
+
+            let ambient = light.ambient;
+            let diffuse = light.diffuse;
+            let specular = light.specular;
             
             if (!light.active) {
-                light.ambient = vec3(0, 0, 0);
-                light.diffuse = vec3(0, 0, 0);
-                light.specular = vec3(0, 0, 0);
+                ambient = vec3(0, 0, 0);
+                diffuse = vec3(0, 0, 0);
+                specular = vec3(0, 0, 0);
             };
             
-            const uploadLightUniform = (k, v) => uploadUniform(`uLights[${i}].${k}`, v);
+            const t = `uLights[${i}].`;
             
-            uploadLightUniform("ambient",  normalizeRGB(light.ambient));
-            uploadLightUniform("diffuse",  normalizeRGB(light.diffuse));
-            uploadLightUniform("specular", normalizeRGB(light.specular));
-            uploadLightUniform("position", mult(mView, light.position));
-            uploadLightUniform("axis",     vec3(mult(mView, vec4(light.axis, 0.0))));
-            uploadLightUniform("aperture", radians(light.aperture));
-            uploadLightUniform("cutoff",   light.cutoff);
+            uploadUniform(t + "ambient",  normalizeRGB(ambient));
+            uploadUniform(t + "diffuse",  normalizeRGB(diffuse));
+            uploadUniform(t + "specular", normalizeRGB(specular));
+            uploadUniform(t + "position", mult(mView, light.position));
+            uploadUniform(t + "axis",     vec3(mult(mView, vec4(light.axis, 0.0))));
+            uploadUniform(t + "aperture", radians(light.aperture));
+            uploadUniform(t + "cutoff",   light.cutoff);
         }
     }
 
     function uploadMaterial(material) {
-        uploadUniform("uMaterial.Ka",        normalizeRGB(material.Ka));
-        uploadUniform("uMaterial.Kd",        normalizeRGB(material.Kd));
-        uploadUniform("uMaterial.Ks",        normalizeRGB(material.Ks));
+        uploadUniform("uMaterial.Ka", normalizeRGB(material.Ka));
+        uploadUniform("uMaterial.Kd", normalizeRGB(material.Kd));
+        uploadUniform("uMaterial.Ks", normalizeRGB(material.Ks));
         uploadUniform("uMaterial.shininess", material.shininess);
     }
 
