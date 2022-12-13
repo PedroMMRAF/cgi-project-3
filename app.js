@@ -46,7 +46,7 @@ function setup(shaders)
             diffuse: vec3(50, 50, 100),
             specular: vec3(50, 50, 100),
             position: vec4(5, 6, 0, true),
-            axis: vec3(0, -5.0, 0),
+            axis: vec3(0, -5, 0),
             aperture: 180,
             cutoff: 0
         },
@@ -56,7 +56,7 @@ function setup(shaders)
             diffuse: vec3(100, 100, 25),
             specular: vec3(100, 100, 25),
             position: vec4(0, 6, 5, true),
-            axis: vec3(0, -1, -0.5),
+            axis: vec3(0, -4, -2),
             aperture: 20,
             cutoff: 4
         }
@@ -116,40 +116,65 @@ function setup(shaders)
     resize_canvas();
     window.addEventListener("resize", resize_canvas);
     window.requestAnimationFrame(render);
+
+    function resize_canvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        aspect = canvas.width / canvas.height;
+
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        updateMProjection();
+        updateMView();
+    }
     //#endregion
 
     //#region GUI
-    function addVec(parentFolder, parentObject, childName, onChange) {
+    function addVec(parentFolder, parentObject, childName) {
         let folder = parentFolder.addFolder(childName);
-
-        let childObject = parentObject[childName];
+        let sub = [];
         let proxy = {}
 
         for (let i = 0; i < 3; i++) {
-            proxy.__defineGetter__("xyz"[i], () => childObject[i]);
-            proxy.__defineSetter__("xyz"[i], (v) => {childObject[i] = v});
-            folder.add(proxy, "xyz"[i], -20, 20).onChange(onChange).listen();
+            proxy.__defineGetter__("xyz"[i], () => parentObject[childName][i]);
+            proxy.__defineSetter__("xyz"[i], (v) => {parentObject[childName][i] = v});
+            sub.push(folder.add(proxy, "xyz"[i], -20, 20));
         }
 
-        if (childObject.length > 3) {
+        if (parentObject[childName].length > 3) {
             proxy.__defineGetter__("w", () => parentObject[childName][3]);
             proxy.__defineSetter__("w", (v) => {parentObject[childName][3] = v});
-            folder.add(proxy, "w").onChange(onChange).listen();
+            sub.push(folder.add(proxy, "w"));
         }
+
+        return {
+            updateDisplay() {
+                for (let value of sub) {
+                    value.updateDisplay();
+                }
+                return this;
+            },
+            onChange(callback) {
+                for (let value of sub) {
+                    value.onChange(callback);
+                }
+                return this;
+            }
+        };
     }
 
     const gui = new GUI();
 
     const guiOptions = gui.addFolder("Options");
 
-    guiOptions.add(options, "backfaceCulling")
-    guiOptions.add(options, "depthTest")
+    guiOptions.add(options, "backfaceCulling");
+    guiOptions.add(options, "depthTest");
 
     const guiCamera = gui.addFolder("Camera");
 
-    addVec(guiCamera, camera, "eye", updateMView);
-    addVec(guiCamera, camera, "at", updateMView);
-    addVec(guiCamera, camera, "up", updateMView);
+    const guiCameraEye = addVec(guiCamera, camera, "eye").onChange(updateMView);
+    addVec(guiCamera, camera, "at").onChange(updateMView);
+    addVec(guiCamera, camera, "up").onChange(updateMView);
     guiCamera.add(camera, "fovy", 20, 160).onChange(updateMProjection);
     guiCamera.add(camera, "near", 0.1, 40).onChange(updateMProjection);
     guiCamera.add(camera, "far",  0.1, 40).onChange(updateMProjection);
@@ -209,7 +234,10 @@ function setup(shaders)
         drag.radius += evt.deltaY / 100;
         drag.radius = Math.max(1.0, Math.min(drag.radius, 30.0))
 
-        camera.eye = add(camera.at, mult(dir, [drag.radius, drag.radius, drag.radius]));
+        let radius = [drag.radius, drag.radius, drag.radius];
+
+        camera.eye = add(camera.at, mult(dir, radius));
+        guiCameraEye.updateDisplay();
         updateMView();
     })
 
@@ -237,10 +265,10 @@ function setup(shaders)
         drag.curPhi = 2 * Math.PI * (drag.curPhi / canvas.height) + drag.prevPhi;
         drag.curPhi = Math.max(-Math.PI / 2, Math.min(drag.curPhi, Math.PI / 2));
 
-        camera.eye = [...camera.at];
-        camera.eye[0] += drag.radius * Math.sin(drag.curTheta) * Math.cos(drag.curPhi);
-        camera.eye[1] += drag.radius * Math.sin(drag.curPhi);
-        camera.eye[2] += drag.radius * Math.cos(drag.curTheta) * Math.cos(drag.curPhi);
+        camera.eye[0] = camera.at[0] + drag.radius * Math.sin(drag.curTheta) * Math.cos(drag.curPhi);
+        camera.eye[1] = camera.at[1] + drag.radius * Math.sin(drag.curPhi);
+        camera.eye[2] = camera.at[2] + drag.radius * Math.cos(drag.curTheta) * Math.cos(drag.curPhi);
+        guiCameraEye.updateDisplay();
         updateMView();
     })
 
@@ -256,17 +284,6 @@ function setup(shaders)
 
     function updateMProjection() {
         mProjection = perspective(camera.fovy, aspect, camera.near, camera.far);
-    }
-
-    function resize_canvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
-        aspect = canvas.width / canvas.height;
-
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        updateMProjection();
-        updateMView();
     }
 
     function uploadUniform(locationName, obj, isInt = false) {
@@ -372,6 +389,7 @@ function setup(shaders)
         gl.useProgram(program);
 
         gl.cullFace(gl.BACK);
+        
         if (options.backfaceCulling)
             gl.enable(gl.CULL_FACE);
         else
@@ -386,7 +404,6 @@ function setup(shaders)
         uploadLights();
 
         loadMatrix(mView);
-
         Scene();
     }
 }

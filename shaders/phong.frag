@@ -36,17 +36,18 @@ varying vec3 fNormal;
 varying vec3 fPos;
 
 float attenuate(float dist) {
-    return min(1.0, 1.0 / (0.1 + 0.01 * dist + 0.001 * pow(dist, 2.0)));
+    return min(1.0, 1.0 / (0.1 + 0.01 * dist + 0.001 * dist * dist));
 }
 
 void main() {
     vec3 finalLight = vec3(0.0);
 
+    vec3 normal = normalize(fNormal);
+
     for (int i = 0; i < MAX_LIGHTS; i++) {
         if (i == uNLights) break;
-        LightInfo light = uLights[i];
 
-        vec3 normal = normalize(fNormal);
+        LightInfo light = uLights[i];
 
         vec3 lightDirection;
         if (light.position.w == 0.0)
@@ -70,12 +71,11 @@ void main() {
             
         float attenuation = attenuate(distance(light.position.xyz, fPos));
 
-
         vec3 sumLight = ambient + attenuation * (diffuse + specular);
         float spotCos = dot(lightDirection, normalize(-light.axis));
 
         if (spotCos > cos(light.aperture))
-            finalLight += max(sumLight * pow((spotCos + 1.0) / 2.0, light.cutoff), 0.0);
+            finalLight += sumLight * pow((spotCos + 1.0) / 2.0, light.cutoff);
     }
 
     gl_FragColor = vec4(finalLight, 0.0);
