@@ -31,22 +31,22 @@ function setup(shaders)
 
     let lights = {
         global: {
-            // light direction é igual para todos os fragmentos
             active: true,
             ambient: vec3(100, 100, 100),
             diffuse: vec3(100, 100, 100),
             specular: vec3(100, 100, 100),
+            // light direction é igual para todos os fragmentos
             position: vec4(-5, 5, -5, false),
             axis: vec3(0, -1, 0),
             aperture: 180,
             cutoff: 0
         },
         local: {
-            // light direction depende da posição do fragmento
             active: true,
             ambient: vec3(50, 50, 100),
             diffuse: vec3(50, 50, 100),
             specular: vec3(50, 50, 100),
+            // light direction depende da posição do fragmento
             position: vec4(5, 6, 0, true),
             axis: vec3(0, -5.0, 0), 
             // abertura do spotlight
@@ -223,8 +223,8 @@ function setup(shaders)
         x: undefined,
         y: undefined,
         radius: undefined,
-        prevPhi: undefined,
-        prevTheta: undefined,
+        initPhi: undefined,
+        initTheta: undefined,
         curPhi: undefined,
         curTheta: undefined,
     }
@@ -258,10 +258,11 @@ function setup(shaders)
         drag.y = evt.clientY;
         const dir = subtract(camera.eye, camera.at);
         drag.radius = length(dir);
-        drag.prevPhi = Math.asin(dir[1] / drag.radius);
-        drag.prevTheta = Math.asin(dir[0] / (drag.radius * Math.cos(drag.prevPhi)));
+        drag.initPhi = Math.asin(dir[1] / drag.radius);
+        drag.initTheta = Math.asin(dir[0] / (drag.radius * Math.cos(drag.initPhi)));
         if (dir[2] < 0)
-            drag.prevTheta = Math.PI - drag.prevTheta;
+            drag.initTheta = Math.PI - drag.initTheta;
+        
         drag.on = true;
     })
 
@@ -271,13 +272,14 @@ function setup(shaders)
         drag.curTheta = drag.x - evt.clientX;
         drag.curPhi = evt.clientY - drag.y;
 
-        drag.curTheta = 2 * Math.PI * (drag.curTheta / canvas.width) + drag.prevTheta;
-        drag.curPhi = 2 * Math.PI * (drag.curPhi / canvas.height) + drag.prevPhi;
+        drag.curTheta = 2 * Math.PI * (drag.curTheta / canvas.width) + drag.initTheta;
+        drag.curPhi = 2 * Math.PI * (drag.curPhi / canvas.height) + drag.initPhi;
         drag.curPhi = Math.max(-Math.PI / 2, Math.min(drag.curPhi, Math.PI / 2));
 
-        camera.eye[0] = camera.at[0] + drag.radius * Math.sin(drag.curTheta) * Math.cos(drag.curPhi);
-        camera.eye[1] = camera.at[1] + drag.radius * Math.sin(drag.curPhi);
-        camera.eye[2] = camera.at[2] + drag.radius * Math.cos(drag.curTheta) * Math.cos(drag.curPhi);
+        camera.eye = [...camera.at];
+        camera.eye[0] += drag.radius * Math.sin(drag.curTheta) * Math.cos(drag.curPhi);
+        camera.eye[1] += drag.radius * Math.sin(drag.curPhi);
+        camera.eye[2] += drag.radius * Math.cos(drag.curTheta) * Math.cos(drag.curPhi);
         guiCameraEye.updateDisplay();
         updateMView();
     })
@@ -405,16 +407,16 @@ function setup(shaders)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.useProgram(program);
 
-        //esconde faces de tras
+        // esconde faces de tras
         gl.cullFace(gl.BACK);
         
-        //esconder faces ocultas, com o objetivo de diminuir carga no gpu caso seja necessario
+        // esconder faces ocultas, com o objetivo de diminuir carga no gpu caso seja necessario
         if (options.backfaceCulling)
             gl.enable(gl.CULL_FACE);
         else
             gl.disable(gl.CULL_FACE);
 
-        //testa profundidade dos fragmentos dos objetos
+        // testa profundidade dos fragmentos dos objetos
         if (options.depthTest)
             gl.enable(gl.DEPTH_TEST);
         else
