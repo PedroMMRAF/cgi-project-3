@@ -220,8 +220,8 @@ function setup(shaders)
     let drag = {
         disabled: false,
         on: false,
-        x: undefined,
-        y: undefined,
+        initX: undefined,
+        initY: undefined,
         radius: undefined,
         initPhi: undefined,
         initTheta: undefined,
@@ -254,8 +254,8 @@ function setup(shaders)
     document.addEventListener("mousedown", (evt) => {
         if (drag.disabled) return;
         
-        drag.x = evt.clientX;
-        drag.y = evt.clientY;
+        drag.initX = evt.clientX;
+        drag.initY = evt.clientY;
         const dir = subtract(camera.eye, camera.at);
         drag.radius = length(dir);
         drag.initPhi = Math.asin(dir[1] / drag.radius);
@@ -269,8 +269,8 @@ function setup(shaders)
     document.addEventListener("mousemove", (evt) => {
         if (!drag.on) return;
 
-        drag.curTheta = drag.x - evt.clientX;
-        drag.curPhi = evt.clientY - drag.y;
+        drag.curTheta = drag.initX - evt.clientX;
+        drag.curPhi = evt.clientY - drag.initY;
 
         drag.curTheta = 2 * Math.PI * (drag.curTheta / canvas.width) + drag.initTheta;
         drag.curPhi = 2 * Math.PI * (drag.curPhi / canvas.height) + drag.initPhi;
